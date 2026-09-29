@@ -1,37 +1,270 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <base target="_top">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Завантаження форми…</title>
+  <title>Заявка на оплату</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--tg-theme-bg-color, #ffffff);
+      color: var(--tg-theme-text-color, #000000);
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0 0 4px 0;
+    }
+    .hint {
+      font-size: 13px;
+      color: var(--tg-theme-hint-color, #999999);
+      margin: 0 0 20px 0;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 16px 0 6px 0;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid var(--tg-theme-hint-color, #cccccc);
+      border-radius: 10px;
+      background: var(--tg-theme-secondary-bg-color, #f5f5f5);
+      color: var(--tg-theme-text-color, #000000);
+    }
+    input:focus {
+      outline: 2px solid var(--tg-theme-link-color, #2481cc);
+    }
+    .error {
+      color: #e53935;
+      font-size: 13px;
+      margin-top: 6px;
+      min-height: 16px;
+    }
+    .status {
+      margin-top: 20px;
+      font-size: 14px;
+      text-align: center;
+    }
+    .status.error-status { color: #e53935; }
+    .status.ok-status { color: #2e7d32; }
+    .fallback-btn {
+      margin-top: 24px;
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      background: var(--tg-theme-button-color, #2481cc);
+      color: var(--tg-theme-button-text-color, #ffffff);
+    }
+  </style>
 </head>
-<body style="margin:0;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;text-align:center;color:#666;">
-  <p>Завантаження форми…</p>
+<body>
+  <h1>📝 Заявка на оплату</h1>
+  <p class="hint">Форма приватна — її бачите лише ви, поки не натиснете «Надіслати».</p>
+
+  <label for="payer">Хто платник</label>
+  <input id="payer" type="text" placeholder="Наприклад, ТОВ «Продсервіс»" autocomplete="off">
+
+  <label for="payee">Кому платимо</label>
+  <input id="payee" type="text" placeholder="Назва контрагента" autocomplete="off">
+
+  <label for="purpose">За що платимо</label>
+  <input id="purpose" type="text" placeholder="Призначення платежу" autocomplete="off">
+
+  <label for="amount">Скільки платимо</label>
+  <input id="amount" type="text" inputmode="decimal" placeholder="Наприклад, 12500.50" autocomplete="off">
+
+  <div class="error" id="formError"></div>
+  <div class="status" id="status"></div>
+
+  <!-- Звичайна кнопка на сторінці — показуємо ЗАВЖДИ, бо нативна
+       MainButton Telegram нестабільно показується в деяких клієнтах
+       (напр. десктопна версія). Якщо MainButton теж доступна — вона
+       додатково дублює цю ж дію знизу екрана. -->
+  <button class="fallback-btn" id="fallbackBtn" onclick="onSubmit()">📤 Надіслати заявку</button>
+
   <script>
     // ==========================================================================
-    // ВАЖЛИВО: замініть значення нижче на /exec URL вашого проєкту MiniApp
-    // (той самий, що ви деплоїли в Apps Script для форми "Ручне").
+    // ВАЖЛИВО: замініть значення нижче на /exec URL ОСНОВНОГО проєкту бота
+    // (той самий, що прописаний у Script Property WEB_APP_URL основного
+    // проєкту "Реєстр казначейства").
     // ==========================================================================
-    var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwxKIPCQf0VmsG5SUqqlwwJYt8ZYAjxjZdJlQ8dqorw87ziK6GM7o6ztiT_YOpgptiR0g/exec';
+    var MAIN_WEBHOOK_URL = 'ВСТАВТЕ_СЮДИ_/exec_URL_ОСНОВНОГО_ПРОЄКТУ';
 
-    // Telegram передає initData як хеш поточної сторінки:
-    // "#tgWebAppData=...&tgWebAppVersion=...&tgWebAppPlatform=..."
-    // Ми читаємо це ТУТ (на звичайній сторінці, без вкладеного iframe Apps
-    // Script) і передаємо далі як звичайний параметр посилання — такі
-    // параметри Apps Script коректно отримує на сервері.
-    var hash = window.location.hash;
-    var target = APPS_SCRIPT_URL;
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var submitting = false;
 
-    if (hash && hash.length > 1) {
-      var params = new URLSearchParams(hash.substring(1));
-      var initData = params.get('tgWebAppData');
-      if (initData) {
-        target += (APPS_SCRIPT_URL.indexOf('?') === -1 ? '?' : '&') +
-          'tgWebAppData=' + encodeURIComponent(initData);
-      }
+    // Ця сторінка живе на GitHub Pages — звичайний статичний хостинг, БЕЗ
+    // внутрішнього iframe (на відміну від Apps Script HtmlService, який
+    // саме через свій iframe ламав передачу initData). Тому tg.initData
+    // тут працює одразу, напряму, без жодних обхідних маневрів чи
+    // проміжних редиректів.
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    } else {
+      document.getElementById('status').textContent =
+        '⚠️ Сторінку відкрито поза Telegram — форма працює лише всередині бота.';
+      document.getElementById('status').className = 'status error-status';
     }
 
-    window.location.replace(target);
+    function getFields() {
+      return {
+        payer: document.getElementById('payer').value.trim(),
+        payee: document.getElementById('payee').value.trim(),
+        purpose: document.getElementById('purpose').value.trim(),
+        amount: document.getElementById('amount').value.trim().replace(',', '.')
+      };
+    }
+
+    function validate(fields) {
+      if (!fields.payer || !fields.payee || !fields.purpose || !fields.amount) {
+        return 'Заповніть, будь ласка, усі поля.';
+      }
+      var amountNum = parseFloat(fields.amount);
+      if (isNaN(amountNum) || amountNum <= 0) {
+        return 'Сума має бути додатним числом, наприклад 12500.50.';
+      }
+      return null;
+    }
+
+    function setBusy(isBusy) {
+      submitting = isBusy;
+      if (tg && tg.MainButton) {
+        if (isBusy) {
+          tg.MainButton.showProgress(false);
+          tg.MainButton.disable();
+        } else {
+          tg.MainButton.hideProgress();
+          tg.MainButton.enable();
+        }
+      }
+      document.getElementById('fallbackBtn').disabled = isBusy;
+    }
+
+    function onSubmit() {
+      if (submitting) return;
+
+      var fields = getFields();
+      var errorText = validate(fields);
+      var errorEl = document.getElementById('formError');
+      var statusEl = document.getElementById('status');
+
+      errorEl.textContent = '';
+      statusEl.textContent = '';
+      statusEl.className = 'status';
+
+      if (errorText) {
+        errorEl.textContent = errorText;
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+        return;
+      }
+
+      var initDataToSend = (tg && tg.initData) || '';
+
+      if (!initDataToSend) {
+        errorEl.textContent = 'Не вдалося прочитати дані Telegram. Закрийте форму і відкрийте її ще раз через кнопку в боті.';
+        return;
+      }
+
+      if (!MAIN_WEBHOOK_URL || MAIN_WEBHOOK_URL.indexOf('ВСТАВТЕ_СЮДИ') === 0) {
+        errorEl.textContent = 'Форму не налаштовано (MAIN_WEBHOOK_URL). Зверніться до адміністратора.';
+        return;
+      }
+
+      setBusy(true);
+      statusEl.textContent = 'Надсилаю заявку…';
+
+      var payload = {
+        initData: initDataToSend,
+        payer: fields.payer,
+        payee: fields.payee,
+        purpose: fields.purpose,
+        amount: fields.amount
+      };
+
+      var targetUrl = MAIN_WEBHOOK_URL +
+        (MAIN_WEBHOOK_URL.indexOf('?') === -1 ? '?' : '&') + 'type=miniapp_submit';
+
+      // mode: 'no-cors' — свідомо. Apps Script не додає заголовків CORS для
+      // сторонніх джерел, тому прочитати відповідь ми не можемо (запит стає
+      // "опаковим"), але сам запит ГАРАНТОВАНО йде на сервер і виконується
+      // там — а саме це нам і треба (заявка все одно потрапить у групу).
+      fetch(targetUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      })
+        .then(onSuccess)
+        .catch(onError);
+
+      // Запасний варіант: якщо сам fetch() чомусь не викличе ні .then, ні
+      // .catch протягом розумного часу (мережеві збої в WebView трапляються),
+      // все одно знімаємо "зависання" інтерфейсу через 8 секунд.
+      setTimeout(function () {
+        if (submitting) {
+          statusEl.textContent = '✅ Заявку, ймовірно, надіслано — перевірте груповий чат.';
+          statusEl.className = 'status ok-status';
+          setBusy(false);
+          closeAppSoon_();
+        }
+      }, 8000);
+    }
+
+    function onSuccess() {
+      setBusy(false);
+      var statusEl = document.getElementById('status');
+      statusEl.textContent = '✅ Заявку надіслано на розгляд.';
+      statusEl.className = 'status ok-status';
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      closeAppSoon_();
+    }
+
+    // Закриває вікно Mini App після успішного надсилання — і після
+    // звичайного успіху (onSuccess), і після резервного 8-секундного
+    // таймауту вище (в обох випадках заявку вважаємо надісланою).
+    function closeAppSoon_() {
+      setTimeout(function () {
+        if (tg) tg.close();
+      }, 900);
+    }
+
+    function onError(err) {
+      setBusy(false);
+      var statusEl = document.getElementById('status');
+      var message = (err && err.message) ? err.message : String(err);
+      statusEl.textContent = '⚠️ Не вдалося надіслати: ' + message;
+      statusEl.className = 'status error-status';
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+    }
+
+    // MainButton (нативна кнопка внизу екрана) підключаємо як ДОДАТКОВИЙ
+    // спосіб надіслати форму, якщо клієнт її підтримує — але сторінкова
+    // кнопка вище лишається робочою в будь-якому випадку.
+    if (tg && tg.MainButton) {
+      try {
+        tg.MainButton.setText('Надіслати заявку');
+        tg.MainButton.show();
+        tg.MainButton.onClick(onSubmit);
+      } catch (e) {
+        // деякі клієнти можуть не підтримувати MainButton — ігноруємо,
+        // сторінкова кнопка все одно працює
+      }
+    }
   </script>
 </body>
 </html>
