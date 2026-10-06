@@ -42,7 +42,19 @@
       background: var(--tg-theme-secondary-bg-color, #f5f5f5);
       color: var(--tg-theme-text-color, #000000);
     }
-    input:focus {
+    textarea {
+      width: 100%;
+      min-height: 110px;
+      padding: 12px;
+      font-size: 16px;
+      font-family: inherit;
+      border: 1px solid var(--tg-theme-hint-color, #cccccc);
+      border-radius: 10px;
+      background: var(--tg-theme-secondary-bg-color, #f5f5f5);
+      color: var(--tg-theme-text-color, #000000);
+      resize: vertical;
+    }
+    input:focus, textarea:focus {
       outline: 2px solid var(--tg-theme-link-color, #2481cc);
     }
     .error {
@@ -72,9 +84,15 @@
   </style>
 </head>
 <body>
-  <h1>📝 Заявка на оплату</h1>
-  <p class="hint">Форма приватна — її бачите лише ви, поки не натиснете «Надіслати».</p>
+  <h1 id="title">📝 Заявка на оплату</h1>
+  <p class="hint" id="hint">Форма приватна — її бачите лише ви, поки не натиснете «Надіслати».</p>
 
+  <div id="commentBlock" style="display:none">
+    <label for="comment">Коментар до оплати</label>
+    <textarea id="comment" maxlength="500" placeholder="Напишіть коментар — він з'явиться в картці заявки"></textarea>
+  </div>
+
+  <div id="formBlock">
   <label for="payer">Хто платник</label>
   <input id="payer" type="text" placeholder="Наприклад, ТОВ «Продсервіс»" autocomplete="off">
 
@@ -86,6 +104,7 @@
 
   <label for="amount">Скільки платимо</label>
   <input id="amount" type="text" inputmode="decimal" placeholder="Наприклад, 12500.50" autocomplete="off">
+  </div>
 
   <div class="error" id="formError"></div>
   <div class="status" id="status"></div>
@@ -119,6 +138,22 @@
       document.getElementById('status').textContent =
         '⚠️ Сторінку відкрито поза Telegram — форма працює лише всередині бота.';
       document.getElementById('status').className = 'status error-status';
+    }
+
+    // Режим вікна: за start_param "pc_<id>" (кнопка «Сплатити з коментарями»
+    // на картці в групі) показуємо лише поле коментаря; інакше — звичайна
+    // форма «Ручне». start_param входить у підписаний initData, тож сервер
+    // бере рішення з нього, а не з цієї сторінки.
+    var startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '';
+    var commentMode = /^pc_\d+$/.test(startParam);
+    var SUBMIT_TYPE = commentMode ? 'miniapp_comment' : 'miniapp_submit';
+    var SUBMIT_LABEL = commentMode ? 'Сплатити з коментарем' : 'Надіслати заявку';
+    if (commentMode) {
+      document.getElementById('title').textContent = '💬 Сплатити з коментарем';
+      document.getElementById('hint').textContent = 'Це вікно бачите лише ви. Коментар з\u2019явиться в картці заявки, а заявка буде погоджена до оплати.';
+      document.getElementById('formBlock').style.display = 'none';
+      document.getElementById('commentBlock').style.display = 'block';
+      document.getElementById('fallbackBtn').textContent = '✅ ' + SUBMIT_LABEL;
     }
 
     function getFields() {
@@ -158,8 +193,10 @@
     function onSubmit() {
       if (submitting) return;
 
-      var fields = getFields();
-      var errorText = validate(fields);
+      var fields = commentMode ? { comment: document.getElementById('comment').value.trim() } : getFields();
+      var errorText = commentMode
+        ? (fields.comment ? null : 'Напишіть коментар.')
+        : validate(fields);
       var errorEl = document.getElementById('formError');
       var statusEl = document.getElementById('status');
 
@@ -186,18 +223,20 @@
       }
 
       setBusy(true);
-      statusEl.textContent = 'Надсилаю заявку…';
+      statusEl.textContent = commentMode ? 'Надсилаю коментар…' : 'Надсилаю заявку…';
 
-      var payload = {
-        initData: initDataToSend,
-        payer: fields.payer,
-        payee: fields.payee,
-        purpose: fields.purpose,
-        amount: fields.amount
-      };
+      var payload = commentMode
+        ? { initData: initDataToSend, comment: fields.comment }
+        : {
+            initData: initDataToSend,
+            payer: fields.payer,
+            payee: fields.payee,
+            purpose: fields.purpose,
+            amount: fields.amount
+          };
 
       var targetUrl = MAIN_WEBHOOK_URL +
-        (MAIN_WEBHOOK_URL.indexOf('?') === -1 ? '?' : '&') + 'type=miniapp_submit';
+        (MAIN_WEBHOOK_URL.indexOf('?') === -1 ? '?' : '&') + 'type=' + SUBMIT_TYPE;
 
       // mode: 'no-cors' — свідомо. Apps Script не додає заголовків CORS для
       // сторонніх джерел, тому прочитати відповідь ми не можемо (запит стає
@@ -217,7 +256,7 @@
       // все одно знімаємо "зависання" інтерфейсу через 8 секунд.
       setTimeout(function () {
         if (submitting) {
-          statusEl.textContent = '✅ Заявку, ймовірно, надіслано — перевірте груповий чат.';
+          statusEl.textContent = commentMode ? '✅ Коментар, ймовірно, надіслано — перевірте картку в групі.' : '✅ Заявку, ймовірно, надіслано — перевірте груповий чат.';
           statusEl.className = 'status ok-status';
           setBusy(false);
           closeAppSoon_();
@@ -228,7 +267,7 @@
     function onSuccess() {
       setBusy(false);
       var statusEl = document.getElementById('status');
-      statusEl.textContent = '✅ Заявку надіслано на розгляд.';
+      statusEl.textContent = commentMode ? '✅ Коментар надіслано.' : '✅ Заявку надіслано на розгляд.';
       statusEl.className = 'status ok-status';
       if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
       closeAppSoon_();
@@ -258,7 +297,7 @@
     // сторінкова кнопка лишається єдиним способом надіслати форму.
     if (tg && tg.MainButton) {
       try {
-        tg.MainButton.setText('Надіслати заявку');
+        tg.MainButton.setText(SUBMIT_LABEL);
         tg.MainButton.show();
         tg.MainButton.onClick(onSubmit);
         document.getElementById('fallbackBtn').style.display = 'none';
