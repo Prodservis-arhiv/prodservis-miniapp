@@ -106,6 +106,15 @@
   <input id="amount" type="text" inputmode="decimal" placeholder="Наприклад, 12500.50" autocomplete="off">
   </div>
 
+  <div id="diagBlock" style="display:none">
+    <p class="hint">Діагностика. Нічого не записує й не викликає Gemini.</p>
+    <button class="fallback-btn" style="margin-top:8px" onclick="runDiag(0)">1. Чи читається відповідь сервера</button>
+    <button class="fallback-btn" style="margin-top:8px" onclick="runDiag(1)">2. Запит 1 МБ</button>
+    <button class="fallback-btn" style="margin-top:8px" onclick="runDiag(3)">3. Запит 3 МБ</button>
+    <button class="fallback-btn" style="margin-top:8px" onclick="runDiag(6)">4. Запит 6 МБ</button>
+    <pre id="diagLog" style="white-space:pre-wrap;font-size:12px;margin-top:16px"></pre>
+  </div>
+
   <div class="error" id="formError"></div>
   <div class="status" id="status"></div>
 
@@ -121,7 +130,139 @@
     // (той самий, що прописаний у Script Property WEB_APP_URL основного
     // проєкту "Реєстр казначейства").
     // ==========================================================================
-    var MAIN_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwSJ5OTsSmZXFagPbxwrUDnWW1oqhWea0ZiVRGSznFCDpuyyvtp3pXz2vR9jZD52-kh/exec';
+    var MAIN_WEBHOOK_URL = '<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Заявка на оплату</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--tg-theme-bg-color, #ffffff);
+      color: var(--tg-theme-text-color, #000000);
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0 0 4px 0;
+    }
+    .hint {
+      font-size: 13px;
+      color: var(--tg-theme-hint-color, #999999);
+      margin: 0 0 20px 0;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 16px 0 6px 0;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid var(--tg-theme-hint-color, #cccccc);
+      border-radius: 10px;
+      background: var(--tg-theme-secondary-bg-color, #f5f5f5);
+      color: var(--tg-theme-text-color, #000000);
+    }
+    textarea {
+      width: 100%;
+      min-height: 110px;
+      padding: 12px;
+      font-size: 16px;
+      font-family: inherit;
+      border: 1px solid var(--tg-theme-hint-color, #cccccc);
+      border-radius: 10px;
+      background: var(--tg-theme-secondary-bg-color, #f5f5f5);
+      color: var(--tg-theme-text-color, #000000);
+      resize: vertical;
+    }
+    input:focus, textarea:focus {
+      outline: 2px solid var(--tg-theme-link-color, #2481cc);
+    }
+    .error {
+      color: #e53935;
+      font-size: 13px;
+      margin-top: 6px;
+      min-height: 16px;
+    }
+    .status {
+      margin-top: 20px;
+      font-size: 14px;
+      text-align: center;
+    }
+    .status.error-status { color: #e53935; }
+    .status.ok-status { color: #2e7d32; }
+    .fallback-btn {
+      margin-top: 24px;
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      background: var(--tg-theme-button-color, #2481cc);
+      color: var(--tg-theme-button-text-color, #ffffff);
+    }
+  </style>
+</head>
+<body>
+  <h1 id="title">📝 Заявка на оплату</h1>
+  <p class="hint" id="hint">Форма приватна — її бачите лише ви, поки не натиснете «Надіслати».</p>
+
+  <div id="commentBlock" style="display:none">
+    <label for="comment">Коментар до оплати</label>
+    <textarea id="comment" maxlength="500" placeholder="Напишіть коментар — він з'явиться в картці заявки"></textarea>
+  </div>
+
+  <div id="formBlock">
+  <label for="payer">Хто платник</label>
+  <input id="payer" type="text" placeholder="Наприклад, ТОВ «Продсервіс»" autocomplete="off">
+
+  <label for="payee">Кому платимо</label>
+  <input id="payee" type="text" placeholder="Назва контрагента" autocomplete="off">
+
+  <label for="purpose">За що платимо</label>
+  <input id="purpose" type="text" placeholder="Призначення платежу" autocomplete="off">
+
+  <label for="amount">Скільки платимо</label>
+  <input id="amount" type="text" inputmode="decimal" placeholder="Наприклад, 12500.50" autocomplete="off">
+  </div>
+
+  <div id="diagBlock" style="display:none">
+    <p class="hint">Діагностика. Нічого не записує й не викликає Gemini.</p>
+    <button class="fallback-btn" style="margin-top:8px" onclick="runDiag(0)">1. Чи читається відповідь сервера</button>
+    <button class="fallback-btn" style="margin-top:8px" onclick="runDiag(1)">2. Запит 1 МБ</button>
+    <button class="fallback-btn" style="margin-top:8px" onclick="runDiag(3)">3. Запит 3 МБ</button>
+    <button class="fallback-btn" style="margin-top:8px" onclick="runDiag(6)">4. Запит 6 МБ</button>
+    <pre id="diagLog" style="white-space:pre-wrap;font-size:12px;margin-top:16px"></pre>
+  </div>
+
+  <div class="error" id="formError"></div>
+  <div class="status" id="status"></div>
+
+  <!-- Звичайна кнопка на сторінці — показуємо ЗАВЖДИ, бо нативна
+       MainButton Telegram нестабільно показується в деяких клієнтах
+       (напр. десктопна версія). Якщо MainButton теж доступна — вона
+       додатково дублює цю ж дію знизу екрана. -->
+  <button class="fallback-btn" id="fallbackBtn" onclick="onSubmit()">📤 Надіслати заявку</button>
+
+  <script>
+    // ==========================================================================
+    // ВАЖЛИВО: замініть значення нижче на /exec URL ОСНОВНОГО проєкту бота
+    // (той самий, що прописаний у Script Property WEB_APP_URL основного
+    // проєкту "Реєстр казначейства").
+    // ==========================================================================
+    var MAIN_WEBHOOK_URL = 'ВСТАВТЕ_СЮДИ_/exec_URL_ОСНОВНОГО_ПРОЄКТУ';
 
     var tg = window.Telegram && window.Telegram.WebApp;
     var submitting = false;
@@ -154,6 +295,267 @@
       document.getElementById('formBlock').style.display = 'none';
       document.getElementById('commentBlock').style.display = 'block';
       document.getElementById('fallbackBtn').textContent = '✅ ' + SUBMIT_LABEL;
+    }
+
+    var diagMode = startParam === 'diag';
+    if (diagMode) {
+      document.getElementById('title').textContent = '🔧 Діагностика';
+      document.getElementById('hint').style.display = 'none';
+      document.getElementById('formBlock').style.display = 'none';
+      document.getElementById('commentBlock').style.display = 'none';
+      document.getElementById('fallbackBtn').style.display = 'none';
+      document.getElementById('diagBlock').style.display = 'block';
+      if (tg && tg.MainButton) { try { tg.MainButton.hide(); } catch (e) {} }
+    }
+
+    function diagLog(text) {
+      var el = document.getElementById('diagLog');
+      el.textContent += text + '\n';
+    }
+
+    // Надсилає запит (type=diag) звичайним (не no-cors) fetch і показує, чи
+    // вдалося прочитати відповідь сервера. mb — розмір додаткового вмісту.
+    function runDiag(mb) {
+      var url = MAIN_WEBHOOK_URL + (MAIN_WEBHOOK_URL.indexOf('?') === -1 ? '?' : '&') + 'type=diag';
+      var payloadStr = new Array(mb * 1024 * 1024 + 1).join('a');
+      var started = Date.now();
+      diagLog('→ надсилаю ' + mb + ' МБ…');
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ initData: (tg && tg.initData) || '', payload: payloadStr })
+      }).then(function (r) {
+        diagLog('HTTP ' + r.status + ', читаю тіло…');
+        return r.text();
+      }).then(function (t) {
+        diagLog('✅ відповідь прочитано за ' + (Date.now() - started) + ' мс: ' + t.substring(0, 300));
+      }).catch(function (e) {
+        diagLog('❌ ' + (e && e.message ? e.message : e) + ' (' + (Date.now() - started) + ' мс)');
+      });
+    }
+
+    function getFields() {
+      return {
+        payer: document.getElementById('payer').value.trim(),
+        payee: document.getElementById('payee').value.trim(),
+        purpose: document.getElementById('purpose').value.trim(),
+        amount: document.getElementById('amount').value.trim().replace(',', '.')
+      };
+    }
+
+    function validate(fields) {
+      if (!fields.payer || !fields.payee || !fields.purpose || !fields.amount) {
+        return 'Заповніть, будь ласка, усі поля.';
+      }
+      var amountNum = parseFloat(fields.amount);
+      if (isNaN(amountNum) || amountNum <= 0) {
+        return 'Сума має бути додатним числом, наприклад 12500.50.';
+      }
+      return null;
+    }
+
+    function setBusy(isBusy) {
+      submitting = isBusy;
+      if (tg && tg.MainButton) {
+        if (isBusy) {
+          tg.MainButton.showProgress(false);
+          tg.MainButton.disable();
+        } else {
+          tg.MainButton.hideProgress();
+          tg.MainButton.enable();
+        }
+      }
+      document.getElementById('fallbackBtn').disabled = isBusy;
+    }
+
+    function onSubmit() {
+      if (submitting) return;
+
+      var fields = commentMode ? { comment: document.getElementById('comment').value.trim() } : getFields();
+      var errorText = commentMode
+        ? (fields.comment ? null : 'Напишіть коментар.')
+        : validate(fields);
+      var errorEl = document.getElementById('formError');
+      var statusEl = document.getElementById('status');
+
+      errorEl.textContent = '';
+      statusEl.textContent = '';
+      statusEl.className = 'status';
+
+      if (errorText) {
+        errorEl.textContent = errorText;
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+        return;
+      }
+
+      var initDataToSend = (tg && tg.initData) || '';
+
+      if (!initDataToSend) {
+        errorEl.textContent = 'Не вдалося прочитати дані Telegram. Закрийте форму і відкрийте її ще раз через кнопку в боті.';
+        return;
+      }
+
+      if (!MAIN_WEBHOOK_URL || MAIN_WEBHOOK_URL.indexOf('ВСТАВТЕ_СЮДИ') === 0) {
+        errorEl.textContent = 'Форму не налаштовано (MAIN_WEBHOOK_URL). Зверніться до адміністратора.';
+        return;
+      }
+
+      setBusy(true);
+      statusEl.textContent = commentMode ? 'Надсилаю коментар…' : 'Надсилаю заявку…';
+
+      var payload = commentMode
+        ? { initData: initDataToSend, comment: fields.comment }
+        : {
+            initData: initDataToSend,
+            payer: fields.payer,
+            payee: fields.payee,
+            purpose: fields.purpose,
+            amount: fields.amount
+          };
+
+      var targetUrl = MAIN_WEBHOOK_URL +
+        (MAIN_WEBHOOK_URL.indexOf('?') === -1 ? '?' : '&') + 'type=' + SUBMIT_TYPE;
+
+      // mode: 'no-cors' — свідомо. Apps Script не додає заголовків CORS для
+      // сторонніх джерел, тому прочитати відповідь ми не можемо (запит стає
+      // "опаковим"), але сам запит ГАРАНТОВАНО йде на сервер і виконується
+      // там — а саме це нам і треба (заявка все одно потрапить у групу).
+      fetch(targetUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      })
+        .then(onSuccess)
+        .catch(onError);
+
+      // Запасний варіант: якщо сам fetch() чомусь не викличе ні .then, ні
+      // .catch протягом розумного часу (мережеві збої в WebView трапляються),
+      // все одно знімаємо "зависання" інтерфейсу через 8 секунд.
+      setTimeout(function () {
+        if (submitting) {
+          statusEl.textContent = commentMode ? '✅ Коментар, ймовірно, надіслано — перевірте картку в групі.' : '✅ Заявку, ймовірно, надіслано — перевірте груповий чат.';
+          statusEl.className = 'status ok-status';
+          setBusy(false);
+          closeAppSoon_();
+        }
+      }, 8000);
+    }
+
+    function onSuccess() {
+      setBusy(false);
+      var statusEl = document.getElementById('status');
+      statusEl.textContent = commentMode ? '✅ Коментар надіслано.' : '✅ Заявку надіслано на розгляд.';
+      statusEl.className = 'status ok-status';
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      closeAppSoon_();
+    }
+
+    // Закриває вікно Mini App після успішного надсилання — і після
+    // звичайного успіху (onSuccess), і після резервного 8-секундного
+    // таймауту вище (в обох випадках заявку вважаємо надісланою).
+    function closeAppSoon_() {
+      setTimeout(function () {
+        if (tg) tg.close();
+      }, 900);
+    }
+
+    function onError(err) {
+      setBusy(false);
+      var statusEl = document.getElementById('status');
+      var message = (err && err.message) ? err.message : String(err);
+      statusEl.textContent = '⚠️ Не вдалося надіслати: ' + message;
+      statusEl.className = 'status error-status';
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+    }
+
+    // MainButton (нативна кнопка внизу екрана). Якщо клієнт її підтримує —
+    // ховаємо сторінкову кнопку, щоб не було двох однакових "Надіслати
+    // заявку" одночасно. Якщо MainButton не вдалося підключити (catch) —
+    // сторінкова кнопка лишається єдиним способом надіслати форму.
+    if (tg && tg.MainButton) {
+      try {
+        tg.MainButton.setText(SUBMIT_LABEL);
+        tg.MainButton.show();
+        tg.MainButton.onClick(onSubmit);
+        document.getElementById('fallbackBtn').style.display = 'none';
+      } catch (e) {
+        // деякі клієнти можуть не підтримувати MainButton — ігноруємо,
+        // сторінкова кнопка все одно працює
+      }
+    }
+  </script>
+</body>
+</html>';
+
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var submitting = false;
+
+    // Ця сторінка живе на GitHub Pages — звичайний статичний хостинг, БЕЗ
+    // внутрішнього iframe (на відміну від Apps Script HtmlService, який
+    // саме через свій iframe ламав передачу initData). Тому tg.initData
+    // тут працює одразу, напряму, без жодних обхідних маневрів чи
+    // проміжних редиректів.
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    } else {
+      document.getElementById('status').textContent =
+        '⚠️ Сторінку відкрито поза Telegram — форма працює лише всередині бота.';
+      document.getElementById('status').className = 'status error-status';
+    }
+
+    // Режим вікна: за start_param "pc_<id>" (кнопка «Сплатити з коментарями»
+    // на картці в групі) показуємо лише поле коментаря; інакше — звичайна
+    // форма «Ручне». start_param входить у підписаний initData, тож сервер
+    // бере рішення з нього, а не з цієї сторінки.
+    var startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '';
+    var commentMode = /^pc_\d+$/.test(startParam);
+    var SUBMIT_TYPE = commentMode ? 'miniapp_comment' : 'miniapp_submit';
+    var SUBMIT_LABEL = commentMode ? 'Сплатити з коментарем' : 'Надіслати заявку';
+    if (commentMode) {
+      document.getElementById('title').textContent = '💬 Сплатити з коментарем';
+      document.getElementById('hint').textContent = 'Це вікно бачите лише ви. Коментар з\u2019явиться в картці заявки, а заявка буде погоджена до оплати.';
+      document.getElementById('formBlock').style.display = 'none';
+      document.getElementById('commentBlock').style.display = 'block';
+      document.getElementById('fallbackBtn').textContent = '✅ ' + SUBMIT_LABEL;
+    }
+
+    var diagMode = startParam === 'diag';
+    if (diagMode) {
+      document.getElementById('title').textContent = '🔧 Діагностика';
+      document.getElementById('hint').style.display = 'none';
+      document.getElementById('formBlock').style.display = 'none';
+      document.getElementById('commentBlock').style.display = 'none';
+      document.getElementById('fallbackBtn').style.display = 'none';
+      document.getElementById('diagBlock').style.display = 'block';
+      if (tg && tg.MainButton) { try { tg.MainButton.hide(); } catch (e) {} }
+    }
+
+    function diagLog(text) {
+      var el = document.getElementById('diagLog');
+      el.textContent += text + '\n';
+    }
+
+    // Надсилає запит (type=diag) звичайним (не no-cors) fetch і показує, чи
+    // вдалося прочитати відповідь сервера. mb — розмір додаткового вмісту.
+    function runDiag(mb) {
+      var url = MAIN_WEBHOOK_URL + (MAIN_WEBHOOK_URL.indexOf('?') === -1 ? '?' : '&') + 'type=diag';
+      var payloadStr = new Array(mb * 1024 * 1024 + 1).join('a');
+      var started = Date.now();
+      diagLog('→ надсилаю ' + mb + ' МБ…');
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ initData: (tg && tg.initData) || '', payload: payloadStr })
+      }).then(function (r) {
+        diagLog('HTTP ' + r.status + ', читаю тіло…');
+        return r.text();
+      }).then(function (t) {
+        diagLog('✅ відповідь прочитано за ' + (Date.now() - started) + ' мс: ' + t.substring(0, 300));
+      }).catch(function (e) {
+        diagLog('❌ ' + (e && e.message ? e.message : e) + ' (' + (Date.now() - started) + ' мс)');
+      });
     }
 
     function getFields() {
